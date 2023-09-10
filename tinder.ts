@@ -1,4 +1,4 @@
-import { Browser, HTTPRequest, HTTPResponse, Page, Target } from 'puppeteer'
+import { Browser, Page } from 'puppeteer'
 import { Subject } from 'rxjs'
 import { injectFindElement, wait } from './util'
 
@@ -9,11 +9,13 @@ export class Tinder {
   public nbMatches = 0
   public nbMsgMatches = 0
   public nbLikedMe = 0
+  private visitedPhotoVerified = false
 
   constructor(
     private browser: Browser,
     private googleLogin: string,
     private googlePassword: string,
+    private locationName: string,
     private latitude: number,
     private longitude: number
   ) {
@@ -30,14 +32,18 @@ export class Tinder {
 
   async ready() {
     this.page = await this.browser.newPage()
+    /*
+    this.log(`Setting geolocation to ${this.latitude},${this.longitude}.`)
     await this.page.setGeolocation({
       latitude: this.latitude,
       longitude: this.longitude,
     })
+    */
     await this.page.setRequestInterception(true)
     this.createListeners()
     await this.page.goto('https://tinder.com/app/recs', {
       waitUntil: 'networkidle0',
+      timeout: 0
     })
 
     await wait(3000)
@@ -45,19 +51,70 @@ export class Tinder {
 
     if (!this.isLoggedIn()) {
       this.log('Not logged in.')
-      await this.loginFlow()
+      await this.facebookLoginFlow()
       this.log('Finished logging in.')
+      await wait(2000)
+      await this.page.evaluate(() => {
+        ;(<any>window).findElement('button', 'allow').click()
+        setTimeout(() => {
+          ;(<any>window).findElement('button', 'not interested').click()
+        }, 1000)
+      })
     } else {
       this.log('Already logged in.')
     }
+
+    // Set location by simulation
+    /*
+    await this.page.evaluate(() => {
+      ;(<any>document.querySelector('a[href="/app/profile"]')).click()
+      setTimeout(() => {
+        ;(<any>window).findElement('a', 'location').click()
+        setTimeout(() => {
+          ;(<any>document.querySelector('.passport__loader')).remove()
+          ;(<any>document.querySelector('input[placeholder="Search a Location"]')).focus()
+        }, 500)
+      }, 500)
+    })
+    await wait(1100)
+    await this.page.keyboard.type(this.locationName)
+    await wait(2000)
+    this.page.keyboard.press('ArrowDown')
+    await wait(200)
+    this.page.keyboard.press('Enter')
+    await wait(200)
+    await this.page.evaluate(() => {
+      setTimeout(() => {
+        ;(<any>document.querySelector('div.passport__locationMarker')).click()
+      }, 5000)
+    })
+    */
   }
 
   createListeners() {
+    let done = false;
     this.page.on('request', (request) => {
       const likeUrl = 'https://api.gotinder.com/like'
       const passUrl = 'https://api.gotinder.com/pass'
 
       if (request.resourceType() === 'image') request.abort()
+
+      // Set location by API
+      const headers = request.headers()
+      if (!done && request.method() === 'POST' && headers['x-auth-token']) {
+        done = true;
+        this.page.evaluate((headers, latitude, longitude) => {
+          //alert(JSON.stringify(headers))
+          fetch('https://api.gotinder.com/passport/user/travel?locale=en', {
+            method: 'POST',
+            headers: headers,
+            body: JSON.stringify({
+              lat: latitude,
+              lon: longitude
+            })
+          })
+        }, headers, this.latitude, this.longitude)
+      }
 
       if (
         request.method() === 'POST' &&
@@ -117,9 +174,9 @@ export class Tinder {
     return this.page.url() !== 'https://tinder.com/'
   }
 
-  async loginFlow() {
+  async googleLoginFlow() {
     await this.page.evaluate(() => {
-      ;(<any>window).findElement('button', 'log in').click()
+      ;(<any>window).findElement('a', 'log in').click()
       setTimeout(() => {
         ;(<any>window).findElement('button', 'log in with google').click()
       }, 2000)
@@ -153,10 +210,63 @@ export class Tinder {
     await wait(2000)
   }
 
-  isOutOfLike() {
-    return this.page.evaluate(
-      () => !!(<any>window).findElement('h3', "you're out of likes!")
+  async facebookLoginFlow() {
+    await this.page.evaluate(() => {
+      ;(<any>window).findElement('a', 'log in').click()
+      setTimeout(() => {
+        ;(<any>window).findElement('button', 'log in with facebook').click()
+      }, 2000)
+    })
+    const popupPage = await new Promise<Page>((x) =>
+      this.page.once('popup', (page) => x(page))
     )
+    this.log('Found facebook login popup !')
+    await popupPage.waitForSelector('[data-cookiebanner=accept_button]')
+    await popupPage.$eval('[data-cookiebanner=accept_button]', (el: HTMLButtonElement) =>
+      el.click()
+    )
+    await popupPage.waitForSelector('#email')
+    await popupPage.$eval(
+      '#email',
+      (el: HTMLInputElement, login: string) => (el.value = login),
+      this.googleLogin
+    )
+    await popupPage.waitForSelector('#pass')
+    await popupPage.$eval(
+      '#pass',
+      (el: HTMLInputElement, password: string) => (el.value = password),
+      this.googlePassword
+    )
+    await popupPage.$eval('#loginbutton', (el: HTMLButtonElement) =>
+      el.click()
+    )
+    await new Promise((x) => popupPage.once('close', (page) => x(null)))
+    await this.page.waitForNavigation({
+      waitUntil: 'networkidle0',
+    })
+    await wait(2000)
+  }
+
+  isOutOfLike() {
+    return this.page.evaluate((visitedPhotoVerified) => {
+      if(!!(<any>window).findElement('h3', "you're out of likes!")) return true
+      if(!!(<any>window).findElement('button', 'go global')) {
+        if(visitedPhotoVerified) return true
+        ;(<any>document.querySelector('a[href="/app/explore"]')).click()
+        return new Promise(x => setTimeout(() => {
+          ;(<any>window).findElement('button', 'try now').click()
+          setTimeout(() => x('photoVerified'), 5000)
+        }, 500))
+      }
+      return false
+    }, this.visitedPhotoVerified).then(v => {
+      if(v === 'photoVerified') {
+        this.log('Moved to photo verified')
+        this.visitedPhotoVerified = true
+        return false
+      }
+      return v
+    })
   }
 
   hidePopup() {

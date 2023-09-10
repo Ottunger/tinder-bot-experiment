@@ -3,13 +3,11 @@ config()
 
 import puppeteer from 'puppeteer-extra'
 import StealthPlugin from 'puppeteer-extra-plugin-stealth'
-import NodeGeocoder from 'node-geocoder'
 import dayjs from 'dayjs'
 import { GoogleSpreadsheet } from 'google-spreadsheet'
 import creds from './google_sheets.json'
 import { Tinder } from './tinder'
-import { randomItem, wait } from './util'
-import { HTTPRequest } from 'puppeteer'
+import { wait } from './util'
 
 puppeteer.use(StealthPlugin())
 ;(async () => {
@@ -23,9 +21,10 @@ puppeteer.use(StealthPlugin())
   const locations = await locationsSheet.getRows()
 
   for (let account of accounts) {
-    console.log(`Processing ${account.name} :`)
-    const location = randomItem(locations)
-    await processAccount(doc, account, location)
+    for (let location of locations) {
+      console.log(`Processing ${account.name} at ${location.name} :`)
+      await processAccount(doc, account, location)
+    }
   }
 
   process.exit()
@@ -39,12 +38,14 @@ async function processAccount(
   console.log('Starting browser...')
   const browser = await puppeteer.launch(<any>{
     args: [
-      '--user-agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 11_1_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.192 Safari/537.36"',
+      '--user-agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36"',
     ],
     userDataDir: `/tmp/browser-data-${account.name}`,
-    headless: true,
+    headless: false,
+    executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
   })
 
+  /*
   const geocoder = NodeGeocoder({
     provider: 'google',
     apiKey: process.env.GOOGLE_API_KEY,
@@ -54,13 +55,15 @@ async function processAccount(
   if (coords.length === 0) {
     throw Error('Failed to geocode.')
   }
+  */
 
   const tinder = new Tinder(
     browser,
-    account.google_login,
-    account.google_password,
-    coords[0].latitude,
-    coords[0].longitude
+    account.facebook_login,
+    account.facebook_password,
+    location.name,
+    +location.latitude,
+    +location.longitude
   )
   console.log('Waiting for Tinder to be ready...')
   await tinder.ready()
@@ -77,16 +80,17 @@ async function processAccount(
   })
 
   console.log('Starting actions.')
-  for (let i = 0; i < 25; i++) {
+  for (let i = 0; i < 25000; i++) {
     if (await tinder.isOutOfLike()) break
     await tinder.hidePopup()
 
-    await wait(1000 + Math.random() * 3000)
+    await wait(150 + Math.random() * 150)
 
-    if (Math.random() > 0.5) await tinder.like()
-    else await tinder.pass()
+    //if (Math.random() > 0.5) await tinder.like()
+    //else await tinder.pass()
+    await tinder.like()
 
-    await wait(1000)
+    await wait(200)
   }
 
   const activitySheet = doc.sheetsByTitle['Activity']
@@ -94,6 +98,7 @@ async function processAccount(
   await activitySheet.addRow({
     account_name: account.name,
     date: dayjs().format('DD/MM/YYYY'),
+    location: location.name,
     likes: nbLikes,
     passes: nbPasses,
   })
@@ -102,6 +107,7 @@ async function processAccount(
   await matchesSheet.addRow({
     account_name: account.name,
     date: dayjs().format('DD/MM/YYYY'),
+    location: location.name,
     matches: tinder.nbMatches,
     msg_matches: tinder.nbMsgMatches,
     liked_you: tinder.nbLikedMe,

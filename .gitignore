@@ -1,0 +1,5 @@
+.env
+google_sheets.json
+
+node_modules
+*.js
