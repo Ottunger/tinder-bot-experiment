@@ -21,7 +21,7 @@ puppeteer.use(StealthPlugin())
   const locations = await locationsSheet.getRows()
 
   for (let account of accounts) {
-    for (let location of locations) {
+    for (let location of locations.sort(() => 0.5 - Math.random())) {
       console.log(`Processing ${account.name} at ${location.name} :`)
       await processAccount(doc, account, location)
     }
@@ -42,7 +42,7 @@ async function processAccount(
     ],
     userDataDir: `/tmp/browser-data-${account.name}`,
     headless: false,
-    executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+    executablePath: process.platform === 'win32' ? 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe' : '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
   })
 
   /*
