@@ -254,8 +254,12 @@ export class Tinder {
         if(visitedPhotoVerified) return true
         ;(<any>document.querySelector('a[href="/app/explore"]')).click()
         return new Promise(x => setTimeout(() => {
-          ;(<any>window).findElement('button', 'try now').click()
-          setTimeout(() => x('photoVerified'), 5000)
+          try {
+            ;(<any>window).findElement('button', 'try now').click()
+            setTimeout(() => x('photoVerified'), 5000)
+          } catch {
+            x(true)
+          }
         }, 500))
       }
       return false
