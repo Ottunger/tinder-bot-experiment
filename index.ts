@@ -39,6 +39,9 @@ async function processAccount(
   const browser = await puppeteer.launch(<any>{
     args: [
       '--user-agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36"',
+      '--disable-background-timer-throttling',
+      '--disable-backgrounding-occluded-windows',
+      '--disable-renderer-backgrounding'
     ],
     userDataDir: `/tmp/browser-data-${account.name}`,
     headless: false,
