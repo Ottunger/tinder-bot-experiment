@@ -32,6 +32,8 @@ export class Tinder {
 
   async ready() {
     this.page = await this.browser.newPage()
+    const [oldPage] = await this.browser.pages()
+    oldPage.bringToFront()
     /*
     this.log(`Setting geolocation to ${this.latitude},${this.longitude}.`)
     await this.page.setGeolocation({
@@ -42,6 +44,30 @@ export class Tinder {
     await this.page.setRequestInterception(true)
     this.createListeners()
     await this.page.goto('https://tinder.com/app/recs', {
+      waitUntil: 'domcontentloaded',
+      timeout: 0
+    })
+
+    await this.page.evaluate(() => {
+      const div = document.createElement('DIV')
+      div.style.width = '100vw'
+      div.style.height = '100vh'
+      div.style.pointerEvents = 'none'
+      div.style.position = 'absolute'
+      div.style.top = '0'
+      div.style.left = '0'
+      div.style.zIndex = '100000000'
+      div.style.background = 'white'
+      document.body.appendChild(div)
+      setInterval(() => {
+        document.title = 'Google'
+        try {
+          (<HTMLLinkElement>document.querySelector("link[rel~='icon']")).href = 'https://stackoverflow.com/favicon.ico'
+        } catch {}
+      }, 50)
+    })
+    this.page.bringToFront()
+    await this.page.waitForNavigation({
       waitUntil: 'networkidle0',
       timeout: 0
     })
