@@ -50,6 +50,7 @@ export class Tinder {
 
     await this.page.evaluate(() => {
       const div = document.createElement('DIV')
+      div.id = 'cover'
       div.style.width = '100vw'
       div.style.height = '100vh'
       div.style.pointerEvents = 'none'
@@ -318,7 +319,15 @@ export class Tinder {
   }
 
   like() {
-    return this.page.keyboard.press('ArrowRight')
+    return Promise.all([
+      this.page.keyboard.press('ArrowRight'),
+      this.visitedPhotoVerified ? this.page.evaluate(() => {
+        try {
+          const el = Array.from(document.querySelectorAll('span.Hidden')).find(n => (n as HTMLSpanElement).innerText.toUpperCase() === 'LIKE').parentNode.parentNode.parentNode
+          ;(<any>el).click()
+        } catch {}
+      }) : Promise.resolve()
+    ])
   }
 
   pass() {
