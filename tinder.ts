@@ -279,7 +279,11 @@ export class Tinder {
       if(!!(<any>window).findElement('h3', "you're out of likes!")) return true
       if(!!(<any>window).findElement('button', 'go global')) {
         if(visitedPhotoVerified) return true
-        ;(<any>document.querySelector('a[href="/app/explore"]')).click()
+        try {
+          ;(<any>document.querySelector('a[href="/app/explore"]')).click()
+        } catch {
+          return true
+        }
         return new Promise(x => setTimeout(() => {
           try {
             ;(<any>window).findElement('button', 'try now').click()
