@@ -5,12 +5,13 @@ import puppeteer from 'puppeteer-extra'
 import StealthPlugin from 'puppeteer-extra-plugin-stealth'
 import dayjs from 'dayjs'
 import { GoogleSpreadsheet } from 'google-spreadsheet'
-import creds from './google_sheets.json'
+//import creds from './google_sheets.json'
 import { Tinder } from './tinder'
 import { wait } from './util'
 
 puppeteer.use(StealthPlugin())
 ;(async () => {
+  /*
   const doc = new GoogleSpreadsheet(process.env.GOOGLE_SHEET_ID)
   await doc.useServiceAccountAuth(creds)
   await doc.loadInfo()
@@ -19,6 +20,60 @@ puppeteer.use(StealthPlugin())
   const accounts = await accountsSheet.getRows()
   const locationsSheet = doc.sheetsByTitle['Locations']
   const locations = await locationsSheet.getRows()
+  */
+ const doc = undefined;
+ const accounts = [{name: 'Greg', facebook_login: 'greg1@live.be', facebook_password: process.env.PASSWORD}];
+ const locations = [
+  {
+    "name": "Eghezée (Bruxelles)",
+    "latitude": 50.5873302,
+    "longitude": 4.8057713
+  },
+  {
+    "name": "Herve (Liège)",
+    "latitude": 50.649336,
+    "longitude": 5.7129928
+  },
+  {
+    "name": "Haguenau (Strasbourg)",
+    "latitude": 48.8389095,
+    "longitude": 7.7388823
+  },
+  {
+    "name": "Rethel (Reims)",
+    "latitude": 49.5147485,
+    "longitude": 4.3607741
+  },
+  {
+    "name": "Tournai (Lille)",
+    "latitude": 50.6207061,
+    "longitude": 3.3281037
+  },
+  {
+    "name": "Mol (Anvers)",
+    "latitude": 51.2381813,
+    "longitude": 5.0563309
+  },
+  {
+    "name": "Saint-Quentin (Lille)",
+    "latitude": 49.847577,
+    "longitude": 3.2377846
+  },
+  {
+    "name": "Chessy (Paris)",
+    "latitude": 48.8718326,
+    "longitude": 2.7491365
+  },
+  {
+    "name": "Wiesbaden (Frankfurt)",
+    "latitude": 50.0725636,
+    "longitude": 8.1659533
+  },
+  {
+    "name": "Dublin",
+    "latitude": 53.3391188,
+    "longitude": -6.2577377
+  }];
 
   for (let account of accounts) {
     for (let location of locations.sort(() => 0.5 - Math.random())) {
@@ -96,26 +151,28 @@ async function processAccount(
     await wait(200)
   }
 
-  const activitySheet = doc.sheetsByTitle['Activity']
-  console.log('Logging activity summary.')
-  await activitySheet.addRow({
-    account_name: account.name,
-    date: dayjs().format('DD/MM/YYYY'),
-    location: location.name,
-    likes: nbLikes,
-    passes: nbPasses,
-  })
-  const matchesSheet = doc.sheetsByTitle['Matches']
-  console.log('Logging matches summary.')
-  await matchesSheet.addRow({
-    account_name: account.name,
-    date: dayjs().format('DD/MM/YYYY'),
-    location: location.name,
-    matches: tinder.nbMatches,
-    msg_matches: tinder.nbMsgMatches,
-    liked_you: tinder.nbLikedMe,
-    total_matches: tinder.totalMatches(),
-  })
+  if(doc) {
+    const activitySheet = doc.sheetsByTitle['Activity']
+    console.log('Logging activity summary.')
+    await activitySheet.addRow({
+      account_name: account.name,
+      date: dayjs().format('DD/MM/YYYY'),
+      location: location.name,
+      likes: nbLikes,
+      passes: nbPasses,
+    })
+    const matchesSheet = doc.sheetsByTitle['Matches']
+    console.log('Logging matches summary.')
+    await matchesSheet.addRow({
+      account_name: account.name,
+      date: dayjs().format('DD/MM/YYYY'),
+      location: location.name,
+      matches: tinder.nbMatches,
+      msg_matches: tinder.nbMsgMatches,
+      liked_you: tinder.nbLikedMe,
+      total_matches: tinder.totalMatches(),
+    })
+  }
 
   await browser.close()
 
