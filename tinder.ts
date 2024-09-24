@@ -69,7 +69,7 @@ export class Tinder {
     })
     this.page.bringToFront()
     await this.page.waitForNavigation({
-      waitUntil: 'networkidle0',
+      waitUntil: 'networkidle2',
       timeout: 0
     })
 
@@ -140,7 +140,9 @@ export class Tinder {
               lon: longitude
             })
           })
-        }, headers, this.latitude, this.longitude)
+        }, headers, this.latitude, this.longitude).then(() => {
+          console.log('Navigated to ' + this.latitude + ',' + this.longitude)
+        })
       }
 
       if (
