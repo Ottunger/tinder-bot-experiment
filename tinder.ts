@@ -9,7 +9,7 @@ export class Tinder {
   public nbMatches = 0
   public nbMsgMatches = 0
   public nbLikedMe = 0
-  private visitedPhotoVerified = false
+  private visitedPhotoVerified = [false, false, false]
 
   constructor(
     private browser: Browser,
@@ -78,9 +78,9 @@ export class Tinder {
 
     if (!this.isLoggedIn()) {
       this.log('Not logged in.')
-      await this.facebookLoginFlow()
+      // await this.facebookLoginFlow()
       this.log('Finished logging in.')
-      await wait(2000)
+      await wait(200000)
       await this.page.evaluate(() => {
         ;(<any>window).findElement('button', 'allow').click()
         setTimeout(() => {
@@ -279,8 +279,9 @@ export class Tinder {
   isOutOfLike() {
     return this.page.evaluate((visitedPhotoVerified) => {
       if(!!(<any>window).findElement('h3', "you're out of likes!")) return true
-      if(!!(<any>window).findElement('button', 'go global')) {
-        if(visitedPhotoVerified) return true
+      if(!!(<any>window).findElement('button', 'go global') /*|| 
+            (document.querySelectorAll('div.recsCardboard__cards') && Array.from(document.querySelectorAll('*[itemprop="name"]')).length < 2)*/) {
+        if(visitedPhotoVerified.every(x => x)) return true
         try {
           ;(<any>document.querySelector('a[href="/app/explore"]')).click()
         } catch {
@@ -288,8 +289,17 @@ export class Tinder {
         }
         return new Promise(x => setTimeout(() => {
           try {
-            ;(<any>window).findElement('button', 'try now').click()
-            setTimeout(() => x('photoVerified'), 5000)
+            for(let i = 0; i < visitedPhotoVerified.length; i++) {
+              if(!visitedPhotoVerified[i]) {
+                let btnText = i === 0 ? 'short-term fun' : (i === 1 ? 'photo verified' : 'free tonight')
+                if(!!(<any>window).findElement('div', btnText)) {
+                  ;(<any>window).findElement('div', btnText).click()
+                  setTimeout(() => x(btnText), 5000)
+                  return
+                }
+              }
+            }
+            throw 'no button'
           } catch {
             x(true)
           }
@@ -297,9 +307,17 @@ export class Tinder {
       }
       return false
     }, this.visitedPhotoVerified).then(v => {
-      if(v === 'photoVerified') {
+      if(v === 'short-term fun') {
+        this.log('Moved to short-term fun')
+        this.visitedPhotoVerified = [true, false, false]
+        return false
+      } else if(v === 'photo verified') {
         this.log('Moved to photo verified')
-        this.visitedPhotoVerified = true
+        this.visitedPhotoVerified = [true, true, false]
+        return false
+      } else if(v === 'free tonight') {
+        this.log('Moved to free tonight')
+        this.visitedPhotoVerified = [true, true, true]
         return false
       }
       return v
