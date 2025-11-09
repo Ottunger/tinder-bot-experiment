@@ -281,29 +281,44 @@ export class Tinder {
       if(!!(<any>window).findElement('h3', "you're out of likes!")) return true
       if(!!(<any>window).findElement('button', 'go global') /*|| 
             (document.querySelectorAll('div.recsCardboard__cards') && Array.from(document.querySelectorAll('*[itemprop="name"]')).length < 2)*/) {
+        // alert(JSON.stringify(visitedPhotoVerified))
         if(visitedPhotoVerified.every(x => x)) return true
         try {
           ;(<any>document.querySelector('a[href="/app/explore"]')).click()
         } catch {
-          return true
+          if(visitedPhotoVerified.every(x => !x)) return true
         }
+        // alert('Exploring next category')
         return new Promise(x => setTimeout(() => {
           try {
-            for(let i = 0; i < visitedPhotoVerified.length; i++) {
-              if(!visitedPhotoVerified[i]) {
-                let btnText = i === 0 ? 'short-term fun' : (i === 1 ? 'photo verified' : 'free tonight')
-                if(!!(<any>window).findElement('div', btnText)) {
-                  ;(<any>window).findElement('div', btnText).click()
-                  setTimeout(() => x(btnText), 5000)
-                  return
-                }
-              }
+            if(!!(<any>window).findElement('div', 'back to explore')) {
+              // alert('Clicking back to explore')
+              ;(<any>window).findElement('div', 'back to explore').click()
             }
-            throw 'no button'
+            setTimeout(() => {
+              try {
+                for(let i = 0; i < visitedPhotoVerified.length; i++) {
+                  if(!visitedPhotoVerified[i]) {
+                    let btnText = i === 0 ? 'short-term fun' : (i === 1 ? 'photo verified' : 'thrill seekers')
+                    // alert('Looking for button ' + btnText)
+                    if(!!(<any>window).findElement('div', btnText)) {
+                      // alert('Clicking ' + btnText)
+                      ;(<any>window).findElement('div', btnText).click()
+                      setTimeout(() => x(btnText), 5000)
+                      return
+                    }
+                  }
+                }
+                // alert('No button found')
+                throw 'no button'
+              } catch {
+                x(true)
+              }
+            }, 1000);
           } catch {
             x(true)
           }
-        }, 500))
+        }, 5000))
       }
       return false
     }, this.visitedPhotoVerified).then(v => {
@@ -315,8 +330,8 @@ export class Tinder {
         this.log('Moved to photo verified')
         this.visitedPhotoVerified = [true, true, false]
         return false
-      } else if(v === 'free tonight') {
-        this.log('Moved to free tonight')
+      } else if(v === 'thrill seekers') {
+        this.log('Moved to thrill seekers')
         this.visitedPhotoVerified = [true, true, true]
         return false
       }

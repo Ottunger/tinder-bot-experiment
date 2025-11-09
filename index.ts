@@ -21,7 +21,7 @@ puppeteer.use(StealthPlugin())
   const locations = await locationsSheet.getRows()
 
   for (let account of accounts) {
-    for (let location of locations.sort(() => 0.5 - Math.random())) {
+    for (let location of locations/*.sort(() => 0.5 - Math.random())*/) {
       console.log(`Processing ${account.name} at ${location.name} :`)
       await processAccount(doc, account, location)
     }
