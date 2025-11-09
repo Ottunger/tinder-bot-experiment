@@ -76,11 +76,11 @@ async function processAccount(
   let nbPasses = 0
   tinder.like$.subscribe(() => {
     nbLikes++
-    console.log('LIKE')
+    console.log('LIKE', nbLikes)
   })
   tinder.pass$.subscribe(() => {
     nbPasses++
-    console.log('PASS')
+    console.log('PASS', nbPasses)
   })
 
   console.log('Starting actions.')

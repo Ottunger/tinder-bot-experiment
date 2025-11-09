@@ -9,7 +9,8 @@ export class Tinder {
   public nbMatches = 0
   public nbMsgMatches = 0
   public nbLikedMe = 0
-  private visitedPhotoVerified = [false, false, false]
+  private nbLikedExplore = 0;
+  private visitedPhotoVerified = [false, false, false, false]
 
   constructor(
     private browser: Browser,
@@ -277,11 +278,12 @@ export class Tinder {
   }
 
   isOutOfLike() {
-    return this.page.evaluate((visitedPhotoVerified) => {
+    return this.page.evaluate((visitedPhotoVerified, nbLikedExplore) => {
       if(!!(<any>window).findElement('h3', "you're out of likes!")) return true
-      if(!!(<any>window).findElement('button', 'go global') /*|| 
-            (document.querySelectorAll('div.recsCardboard__cards') && Array.from(document.querySelectorAll('*[itemprop="name"]')).length < 2)*/) {
+      // Work around bug where one card is looping infinitely
+      if(!!(<any>window).findElement('button', 'go global') || (visitedPhotoVerified.some(x => x) && nbLikedExplore > 200)) {
         // alert(JSON.stringify(visitedPhotoVerified))
+        // alert(nbLikedExplore)
         if(visitedPhotoVerified.every(x => x)) return true
         try {
           ;(<any>document.querySelector('a[href="/app/explore"]')).click()
@@ -299,7 +301,7 @@ export class Tinder {
               try {
                 for(let i = 0; i < visitedPhotoVerified.length; i++) {
                   if(!visitedPhotoVerified[i]) {
-                    let btnText = i === 0 ? 'short-term fun' : (i === 1 ? 'photo verified' : 'thrill seekers')
+                    let btnText = i === 0 ? 'short-term fun' : (i === 1 ? 'photo verified' : (i === 2 ? 'thrill seekers' : 'non-monogamous'))
                     // alert('Looking for button ' + btnText)
                     if(!!(<any>window).findElement('div', btnText)) {
                       // alert('Clicking ' + btnText)
@@ -321,18 +323,26 @@ export class Tinder {
         }, 5000))
       }
       return false
-    }, this.visitedPhotoVerified).then(v => {
+    }, this.visitedPhotoVerified, this.nbLikedExplore).then(v => {
       if(v === 'short-term fun') {
         this.log('Moved to short-term fun')
-        this.visitedPhotoVerified = [true, false, false]
+        this.nbLikedExplore = 0
+        this.visitedPhotoVerified = [true, false, false, false]
         return false
       } else if(v === 'photo verified') {
         this.log('Moved to photo verified')
-        this.visitedPhotoVerified = [true, true, false]
+        this.nbLikedExplore = 0
+        this.visitedPhotoVerified = [true, true, false, false]
         return false
       } else if(v === 'thrill seekers') {
         this.log('Moved to thrill seekers')
-        this.visitedPhotoVerified = [true, true, true]
+        this.nbLikedExplore = 0
+        this.visitedPhotoVerified = [true, true, true, false]
+        return false
+      } else if(v === 'non-monogamous') {
+        this.log('Moved to non-monogamous')
+        this.nbLikedExplore = 0
+        this.visitedPhotoVerified = [true, true, true, true]
         return false
       }
       return v
@@ -358,9 +368,10 @@ export class Tinder {
   }
 
   like() {
+    this.nbLikedExplore++
     return Promise.all([
       this.page.keyboard.press('ArrowRight'),
-      this.visitedPhotoVerified ? this.page.evaluate(() => {
+      this.visitedPhotoVerified.some(x => x) ? this.page.evaluate(() => {
         try {
           const el = Array.from(document.querySelectorAll('span.Hidden')).find(n => (n as HTMLSpanElement).innerText.toUpperCase() === 'LIKE').parentNode.parentNode.parentNode
           ;(<any>el).click()
